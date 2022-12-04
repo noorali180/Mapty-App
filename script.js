@@ -11,7 +11,6 @@ const inputDuration = document.querySelector('.form__input--duration');
 const inputCadence = document.querySelector('.form__input--cadence');
 const inputElevation = document.querySelector('.form__input--elevation');
 
-const mapContiner = document.querySelector('#map');
 
 /// WORKOUT CLASS... 
 class Workout {
@@ -69,6 +68,7 @@ class Cycling extends Workout {
 /////////////// APP Architecture... 
 class App{
     #map;
+    #mapZoomLevel = 13;
     #mapEvent;
     #workouts = [];
 
@@ -77,6 +77,7 @@ class App{
 
         form.addEventListener('submit', this._newWorkout.bind(this));
         inputType.addEventListener('change', this._toggleElevationField.bind(this));
+        containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
     }
 
     _setLocalStorage(){
@@ -84,9 +85,11 @@ class App{
     }
 
     _getLocalStorage(){
-        if(!localStorage.getItem('workouts')) return;
+        const data = JSON.parse(localStorage.getItem('workouts'));
 
-        this.#workouts = JSON.parse(localStorage.getItem('workouts'));
+        if(!data) return;
+
+        this.#workouts = data;
     }
 
     _getPosition(){
@@ -100,7 +103,7 @@ class App{
     _loadMap(position){
         const {latitude, longitude} = position.coords;
 
-        this.#map = L.map('map').setView([latitude, longitude], 13);
+        this.#map = L.map('map').setView([latitude, longitude], this.#mapZoomLevel);
 
         L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -174,18 +177,19 @@ class App{
             workout = new Cycling(coords, distance, duration, elevation);
         }
 
+        this.#workouts.push(workout);
+
         // render workout marker on map
         this._renderWorkoutMarker(workout);
 
         // add workout in list
-        this.#workouts.push(workout);
         this._renderWorkout(workout);
 
         // add workout in localStorage...
         this._setLocalStorage();
 
         // Empty the form fields + hide the form...
-                this._hideForm();
+        this._hideForm();
     }
     
     _renderWorkoutMarker(workout){
@@ -264,36 +268,25 @@ class App{
             this._renderWorkoutMarker(workout);
         })
     }
+
+    _moveToPopup(e){
+        const workoutEl = e.target.closest('.workout');
+
+        if(!workoutEl) return;
+
+
+        const workoutObj = this.#workouts.find((workout) => workout.id === workoutEl.dataset.id);
+
+        this.#map.setView(workoutObj.coords, this.#mapZoomLevel + 2, {
+            animate: true,
+            pan : {
+                duration: 1,
+            }
+        });
+
+        console.log(workoutEl);
+    }
+
 }
-
-// navigator.geolocation.getCurrentPosition((position)=> {
-//     const {latitude, longitude} = position.coords;
-
-//     var map = L.map('map').setView([latitude, longitude], 13);
-
-// L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-//     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-// }).addTo(map);
-
-// map.on('click', function(e){
-//     const {lat, lng} = e.latlng;
-
-//     L.marker([lat, lng]).addTo(map)
-//     .bindPopup(
-//         L.popup({
-//             maxWidth: 250,
-//             maxHeight: 100,
-//             autoClose: false,
-//             closeOnClick: false,
-//             className: 'running-popup'
-//         })
-//     )
-//     .setPopupContent('Workout')
-//     .openPopup();
-// })
-
-
-// }, 
-// ()=> console.log('failed'));
 
 const app = new App();
